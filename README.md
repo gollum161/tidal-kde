@@ -25,7 +25,8 @@ Kirigami (QML) user interface.
 - Streaming quality setting (up to 16-bit / 44.1 kHz FLAC)
 - System tray icon: closing the window keeps the music playing (can be turned off)
 - Themes: pick any installed KDE color scheme (Breeze, Breeze Dark, …) or follow the system
-- Adjustable background opacity, optionally with the background blurred (KWin)
+- Adjustable window transparency (slider or Off/Light/Medium/Strong), optionally with the
+  background blurred (KWin)
 - All settings (volume, quality, theme, opacity, tray) are remembered between sessions
 - Native look on Plasma through the Breeze Qt Quick style
 - Only one instance: starting the app again brings the running window back

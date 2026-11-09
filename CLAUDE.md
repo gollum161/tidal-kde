@@ -59,8 +59,12 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
   before the window is shown.
 - Translucency: windows have an alpha buffer (`setDefaultAlphaBuffer` in app.cpp); the window
   color carries the alpha, and `Binding`s in Main.qml/PlayerBar.qml fade Kirigami's own opaque
-  backgrounds (current page → 0, page toolbar/drawer/footer → same alpha, so bars stay a bit
-  more solid).
+  backgrounds: current page → 0, page toolbar/drawer/footer → `barOverlay` (0.25) on top of the
+  window alpha. (Giving the bars the same alpha as the window compounded to 75–90 % and hid the
+  blur.) The settings page shows *transparency* (0–80 %, presets Off/Light/Medium/Strong);
+  settings.json stores `window_opacity` = 1 − transparency.
+- mpv is started with `PR_SET_PDEATHSIG` (mpv.rs) so it dies with the app on a crash/kill;
+  it must be spawned from the Qt main thread for that to hold.
 - KWindowEffects only knows blur is available after a Wayland roundtrip: the first query always
   says no. app.cpp asks once at startup, Main.qml re-applies after 1 s.
 - Single instance: app.cpp checks D-Bus for `org.mpris.MediaPlayer2.tidal_kde` and sends MPRIS
@@ -94,8 +98,11 @@ was not placed in the graphics scene" comes from Kirigami's `pageStack.push(Comp
   it would collide with the Rust `src/` folder (and `makepkg --cleanbuild` would delete it).
 - **Don't declare QML properties that Qt already defines as FINAL** (e.g. `header` on a page).
   `ItemListPage` uses `detail` for the album/artist header data for this reason.
-- **The docked GlobalDrawer covers the window footer.** The `PlayerBar` footer gets
-  `leftPadding` equal to the drawer width when the drawer is docked (`!drawer.modal`).
+- **Footer geometry with a docked GlobalDrawer.** Kirigami binds the footer's `x` to
+  `-contentItem.x` (= minus the drawer width) but QQC2 sizes it like the content area, so it
+  stopped short of the right edge. Main.qml sets `width: root.width - x` and
+  `leftPadding: -x (+ drawer width only if the drawer still covers the footer, as in older
+  Kirigami)`. Kirigami 6.31 ends the docked drawer above the footer.
 
 ## Status
 

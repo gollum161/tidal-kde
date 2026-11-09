@@ -5,7 +5,7 @@
 #  which would otherwise overlap the project's Rust src/ folder.)
 
 pkgname=tidal-kde
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc="Unofficial KDE (Kirigami) TIDAL client with synced lyrics, a play queue and MPRIS"
 arch=('x86_64' 'aarch64')

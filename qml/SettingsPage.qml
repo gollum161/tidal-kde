@@ -24,37 +24,63 @@ Kirigami.ScrollablePage {
             model: page.schemes
             textRole: "name"
             valueRole: "id"
-            currentIndex: Math.max(0, indexOfValue(Backend.colorScheme))
+            // From the list itself: indexOfValue() runs before the model is filled.
+            currentIndex: Math.max(0, page.schemes.findIndex(s => s.id === Backend.colorScheme))
             onActivated: Backend.changeColorScheme(currentValue)
         }
 
+        // Shown as transparency (0 % = solid), stored as the window's opacity.
         RowLayout {
-            Kirigami.FormData.label: "Background opacity:"
+            Kirigami.FormData.label: "Transparency:"
             spacing: Kirigami.Units.smallSpacing
             QQC2.Slider {
-                id: opacitySlider
-                from: 0.2
-                to: 1
+                id: transparencySlider
+                from: 0
+                to: 0.8
                 stepSize: 0.05
-                value: Backend.windowOpacity
+                snapMode: QQC2.Slider.SnapAlways
+                value: 1 - Backend.windowOpacity
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 12
-                onMoved: Backend.changeWindowOpacity(value)
+                onMoved: Backend.changeWindowOpacity(1 - value)
             }
             QQC2.Label {
-                text: Math.round(opacitySlider.value * 100) + " %"
+                text: Math.round(transparencySlider.value * 100) + " %"
                 Layout.minimumWidth: Kirigami.Units.gridUnit * 2.5
+            }
+        }
+
+        // One-click presets for the slider above.
+        RowLayout {
+            spacing: Kirigami.Units.smallSpacing
+            Repeater {
+                model: [
+                    { text: "Off", value: 0 },
+                    { text: "Light", value: 0.25 },
+                    { text: "Medium", value: 0.5 },
+                    { text: "Strong", value: 0.7 }
+                ]
+                delegate: QQC2.Button {
+                    required property var modelData
+                    text: modelData.text
+                    checkable: true
+                    checked: Math.abs((1 - Backend.windowOpacity) - modelData.value) < 0.01
+                    onClicked: Backend.changeWindowOpacity(1 - modelData.value)
+                }
             }
         }
 
         QQC2.CheckBox {
             text: "Blur what's behind the window"
             checked: Backend.blur
-            enabled: Backend.blurAvailable && Backend.windowOpacity < 1
+            enabled: Backend.blurAvailable
             onToggled: Backend.changeBlur(checked)
         }
         QQC2.Label {
-            visible: !Backend.blurAvailable
-            text: "Blur needs a compositor that supports it, such as KWin on KDE Plasma."
+            text: !Backend.blurAvailable
+                ? "Blur needs a compositor that supports it, such as KWin on KDE Plasma."
+                : Backend.windowOpacity >= 1
+                    ? "Blur shows once the transparency is above 0 %. It's clearest from about 40 %."
+                    : "How strong the blur is comes from KDE's System Settings (Desktop Effects → Blur)."
             font: Kirigami.Theme.smallFont
             opacity: 0.7
             wrapMode: Text.Wrap

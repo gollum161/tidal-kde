@@ -1781,7 +1781,7 @@ dependencies = [
 
 [[package]]
 name = "tidal-kde"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "cxx",
@@ -1790,6 +1790,7 @@ dependencies = [
  "cxx-qt-lib",
  "dirs",
  "fastrand 2.5.0",
+ "libc",
  "serde",
  "serde_json",
  "souvlaki",

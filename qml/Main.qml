@@ -12,6 +12,9 @@ Kirigami.ApplicationWindow {
     readonly property real surfaceAlpha: Backend.windowOpacity
     readonly property bool translucent: surfaceAlpha < 1
     readonly property bool trayAvailable: tray.available
+    // Bars (page toolbar, sidebar, player bar) add this much of their own background on
+    // top of the translucent window, so they stay a little more solid than the content.
+    readonly property real barOverlay: 0.25
 
     title: Backend.title !== "" ? Backend.title + " — " + Backend.artist : "Tidal KDE"
     width: Kirigami.Units.gridUnit * 66
@@ -82,8 +85,8 @@ Kirigami.ApplicationWindow {
     }
 
     // Kirigami paints opaque backgrounds for pages, page toolbars, the sidebar
-    // and the footer. When translucent, pages show the window background and
-    // the bars fade with it (they stay a little more solid than the content).
+    // and the footer. When translucent, pages show only the window background and
+    // the bars add a light layer (barOverlay) on top of it.
     Binding {
         target: root.pageStack.currentItem ? root.pageStack.currentItem.background : null
         property: "opacity"
@@ -94,13 +97,13 @@ Kirigami.ApplicationWindow {
         target: root.pageStack.currentItem && root.pageStack.currentItem.globalToolBarItem
             ? root.pageStack.currentItem.globalToolBarItem.background : null
         property: "opacity"
-        value: root.surfaceAlpha
+        value: root.barOverlay
         when: root.translucent && target !== null
     }
     Binding {
         target: drawer.background
         property: "opacity"
-        value: root.surfaceAlpha
+        value: root.barOverlay
         when: root.translucent && target !== null
     }
 
@@ -188,8 +191,16 @@ Kirigami.ApplicationWindow {
     }
 
     footer: PlayerBar {
-        // The docked sidebar covers the full window height, so keep clear of it.
-        leftPadding: (drawer.modal ? 0 : drawer.width * drawer.position) + Kirigami.Units.smallSpacing
+        id: playerBar
+        // Kirigami moves the footer left by the docked sidebar's width (x < 0) but
+        // sizes it like the content area, so it would stop short of the right
+        // edge: stretch it to the window's right edge and pad its content back
+        // into view. Older Kirigami lets the docked sidebar cover the footer;
+        // then the content also has to clear the sidebar.
+        readonly property bool drawerCovers: !drawer.modal
+            && drawer.y + drawer.height > root.height - height + 1
+        width: root.width - x
+        leftPadding: -x + (drawerCovers ? drawer.width * drawer.position : 0) + Kirigami.Units.smallSpacing
         visible: Backend.loggedIn
         onLyricsRequested: root.showSection("lyrics")
         onQueueRequested: root.showSection("queue")

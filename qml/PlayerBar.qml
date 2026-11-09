@@ -8,11 +8,11 @@ QQC2.ToolBar {
     id: bar
     position: QQC2.ToolBar.Footer
 
-    // Fade the bar's background along with the window (see Main.qml).
+    // When the window is translucent, the bar only adds a light layer (see Main.qml).
     Binding {
         target: bar.background
         property: "opacity"
-        value: Backend.windowOpacity
+        value: 0.25
         when: Backend.windowOpacity < 1 && target !== null
     }
 

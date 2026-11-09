@@ -3,6 +3,7 @@
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
+use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -22,11 +23,23 @@ impl Mpv {
         let socket = runtime.join(format!("tidal-kde-{}.sock", std::process::id()));
         let _ = std::fs::remove_file(&socket);
 
-        let child = Command::new("mpv")
+        let mut command = Command::new("mpv");
+        command
             .args(["--idle=yes", "--no-video", "--no-terminal", "--no-config",
                    "--load-scripts=no", "--audio-display=no", "--audio-client-name=Tidal KDE"])
             .arg(format!("--input-ipc-server={}", socket.display()))
-            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        // If Tidal KDE dies without cleaning up (crash, kill), the kernel stops mpv
+        // too instead of leaving an idle player behind. Runs in the child before exec.
+        // (The signal fires when the spawning *thread* ends: this runs on the Qt main
+        // thread, which lives as long as the app — don't move it to a worker thread.)
+        unsafe {
+            command.pre_exec(|| {
+                libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+                Ok(())
+            });
+        }
+        let child = command
             .spawn()
             .map_err(|e| format!("Couldn't start mpv ({e}). Install mpv with your package manager, e.g. sudo pacman -S mpv or sudo apt install mpv"))?;
 
