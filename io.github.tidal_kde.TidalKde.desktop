@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Tidal KDE
+GenericName=Music Player
+Comment=Stream music from your TIDAL account
+Exec=tidal-kde
+Icon=io.github.tidal_kde.TidalKde
+Terminal=false
+Type=Application
+Categories=Qt;KDE;AudioVideo;Audio;Player;
+Keywords=music;tidal;streaming;lyrics;
+StartupNotify=true

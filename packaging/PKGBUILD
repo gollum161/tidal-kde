@@ -1,0 +1,41 @@
+# Maintainer: gollum161 (https://github.com/gollum161)
+#
+# Build from this folder:  cd packaging && makepkg -si
+# (Kept in its own folder because makepkg uses ./src as scratch space,
+#  which would otherwise overlap the project's Rust src/ folder.)
+
+pkgname=tidal-kde
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Unofficial KDE (Kirigami) TIDAL client with synced lyrics, a play queue and MPRIS"
+arch=('x86_64' 'aarch64')
+url='https://github.com/gollum161/tidal-kde'
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'kirigami' 'qqc2-desktop-style' 'mpv')
+makedepends=('cargo')
+optdepends=('breeze-icons: icons when running outside Plasma')
+# GCC LTO objects can't be linked by Rust's linker (lld): "undefined symbol" errors.
+options=('!lto' '!debug')
+
+_root="$startdir/.."
+
+prepare() {
+  cd "$_root"
+  cargo fetch --locked
+}
+
+build() {
+  cd "$_root"
+  export QMAKE=/usr/bin/qmake6
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo build --release --locked
+}
+
+package() {
+  install -Dm755 "$srcdir/target/release/tidal-kde" "$pkgdir/usr/bin/tidal-kde"
+  install -Dm644 "$_root/io.github.tidal_kde.TidalKde.desktop" \
+    "$pkgdir/usr/share/applications/io.github.tidal_kde.TidalKde.desktop"
+  install -Dm644 "$_root/icons/io.github.tidal_kde.TidalKde.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.tidal_kde.TidalKde.svg"
+  install -Dm644 "$_root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

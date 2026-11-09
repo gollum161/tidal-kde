@@ -1,0 +1,75 @@
+# Builds the Linux packages on every push and pull request.
+# A tag v<version> (matching Cargo.toml) also publishes a GitHub release with them.
+name: Packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debian:
+    name: .deb + AppImage (Debian 13)
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: packaging/ci/debian.sh
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: debian
+          path: dist/
+          if-no-files-found: error
+
+  arch:
+    name: .pkg.tar.zst (Arch Linux)
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: packaging/ci/arch.sh
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: arch
+          path: dist/
+          if-no-files-found: error
+
+  appimage-test:
+    name: AppImage on a system without Qt
+    needs: debian
+    runs-on: ubuntu-24.04
+    container: archlinux:base
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: debian
+          path: dist/
+      - run: packaging/ci/test-appimage.sh
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [debian, arch, appimage-test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          path: dist/
+          merge-multiple: true
+      - id: notes
+        run: packaging/ci/release-notes.sh
+      - uses: softprops/action-gh-release@v3.0.3
+        with:
+          name: ${{ steps.notes.outputs.name }}
+          body_path: release-notes.md
+          files: dist/*
+          fail_on_unmatched_files: true
