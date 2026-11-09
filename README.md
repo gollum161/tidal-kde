@@ -134,8 +134,9 @@ Save this as `~/.config/tidal-kde/client.json`.
 
 [`.github/workflows/packages.yml`](.github/workflows/packages.yml) builds the `.deb`, the AppImage
 (both on Debian 13) and the Arch package on every push, and starts each one in a fresh container
-as a smoke test. Pushing a tag `v<version>` that matches `Cargo.toml` also publishes a GitHub
-release with the packages. The build scripts live in [`packaging/ci/`](packaging/ci/).
+as a smoke test. When everything passes on `main` and the version in `Cargo.toml` has no tag yet,
+the workflow tags that commit `v<version>` and publishes the packages as a GitHub release. So a
+release is: raise `version` in `Cargo.toml` and `pkgver` in `packaging/PKGBUILD`, commit, push. The build scripts live in [`packaging/ci/`](packaging/ci/).
 
 ## How it works
 

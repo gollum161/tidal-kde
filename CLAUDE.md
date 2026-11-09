@@ -33,8 +33,11 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
 - `.github/workflows/packages.yml` + `packaging/ci/` – CI: `debian.sh` builds `.deb` and AppImage
   on Debian 13 (linuxdeploy + Qt plugin, Breeze icons bundled), `arch.sh` builds with the PKGBUILD,
   `smoke-test.sh` starts the app offscreen for 15 s and fails on missing QML modules/libraries,
-  `test-appimage.sh` runs the AppImage on bare Arch without Qt. A tag `v<version>` (must match
-  Cargo.toml) publishes a GitHub release. Asset names: `tidal-kde-<version>-<pkgrel>-x86_64.<ext>`.
+  `test-appimage.sh` runs the AppImage on bare Arch without Qt. Releases are automatic:
+  after all jobs pass on main, `release-check.sh` looks for the tag `v<version>`; if it doesn't
+  exist, the release job creates it on that commit and publishes the release. So releasing =
+  bump `version` (Cargo.toml) + `pkgver` (PKGBUILD) and push; never bump without being asked.
+  A hand-pushed tag `v<version>` still works. Asset names: `tidal-kde-<version>-<pkgrel>-x86_64.<ext>`.
   `packaging/appimage/runtime-imports.qml` lists QML modules loaded at runtime (Breeze style)
   so linuxdeploy bundles them.
 - Version: only in `Cargo.toml` (+ `pkgver` in the PKGBUILD); `build.rs` passes it to `app.cpp`
