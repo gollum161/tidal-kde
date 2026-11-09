@@ -10,7 +10,7 @@ pkgrel=1
 pkgdesc="Unofficial KDE (Kirigami) TIDAL client with synced lyrics, a play queue and MPRIS"
 arch=('x86_64' 'aarch64')
 url='https://github.com/gollum161/tidal-kde'
-license=('MIT')
+license=('GPL-3.0-or-later')
 depends=('qt6-base' 'qt6-declarative' 'kirigami' 'qqc2-desktop-style' 'kcolorscheme' 'kwindowsystem' 'mpv')
 makedepends=('cargo')
 optdepends=('breeze-icons: icons when running outside Plasma'
@@ -38,5 +38,4 @@ package() {
     "$pkgdir/usr/share/applications/io.github.tidal_kde.TidalKde.desktop"
   install -Dm644 "$_root/icons/io.github.tidal_kde.TidalKde.svg" \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.tidal_kde.TidalKde.svg"
-  install -Dm644 "$_root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

@@ -41,7 +41,24 @@ install_files() { # <root>
 # --- .deb ----------------------------------------------------------------------
 root="$(mktemp -d)/deb"
 install_files "$root"
-install -Dm644 LICENSE "$root/usr/share/doc/tidal-kde/copyright"
+# Debian points to its own copy of the GPL instead of shipping the text again
+install -d "$root/usr/share/doc/tidal-kde"
+cat > "$root/usr/share/doc/tidal-kde/copyright" <<COPYRIGHT
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: tidal-kde
+Source: https://github.com/gollum161/tidal-kde
+
+Files: *
+Copyright: 2026 gollum161
+License: GPL-3.0+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ On Debian systems, the full text of the GNU General Public License
+ version 3 can be found in /usr/share/common-licenses/GPL-3.
+COPYRIGHT
 
 # Library dependencies, as Debian's own packages compute them
 shlib_dir="$(mktemp -d)"

@@ -28,7 +28,9 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
   the C functions in app.cpp: `KColorSchemeManager` (scheme by file id, autosave off — the choice
   lives in settings.json) and `KWindowEffects` blur. Links KF6ColorScheme + KF6WindowSystem
   (headers from `/usr/include/KF6/K<Name>`, override with `KF6_INCLUDE_DIR`).
-- `packaging/PKGBUILD` – Arch package build (also installs `LICENSE` and the app icon).
+- `packaging/PKGBUILD` – Arch package build (also installs the app icon).
+- License: GPL-3.0-or-later (`LICENSE` = GNU's gpl-3.0.txt). Arch and Debian reference their
+  common GPL copy instead of installing it; the .deb has a DEP-5 `copyright` file.
 - `icons/io.github.tidal_kde.TidalKde.svg` – app icon (desktop file `Icon=` uses this id).
 - `.github/workflows/packages.yml` + `packaging/ci/` – CI: `debian.sh` builds `.deb` and AppImage
   on Debian 13 (linuxdeploy + Qt plugin, Breeze icons bundled), `arch.sh` builds with the PKGBUILD,
