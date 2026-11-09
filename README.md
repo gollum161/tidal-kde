@@ -32,21 +32,28 @@ Kirigami (QML) user interface.
 
 ## Requirements
 
-Built and tested on **Arch Linux** with **KDE Plasma 6**. Other distributions should work if they
-ship the same pieces, but there is only an Arch package.
+Tidal KDE is made for **KDE Plasma 6** and developed on Arch Linux. There are ready-made packages
+for Arch Linux, for Debian and Ubuntu, and an AppImage for other distributions (see
+[Installation](#installation)). Every package is built and started on a fresh system before a
+release. Other desktops should work too but aren't tested; the tray icon and window blur need a
+desktop that supports them.
 
-Runtime:
+You need a **TIDAL subscription**. The packages pull in everything else; if you build from
+source, these are the pieces:
 
-- Qt 6 (`qt6-base`, `qt6-declarative`)
-- KF6 Kirigami (`kirigami`) and the Breeze Qt Quick style (`qqc2-desktop-style`)
-- [mpv](https://mpv.io), used as the audio engine
-- A TIDAL subscription
+| Component | Arch Linux | Debian / Ubuntu |
+| --- | --- | --- |
+| Qt 6 | `qt6-base`, `qt6-declarative` | `qt6-base-dev`, `qt6-declarative-dev`, `qmake6` |
+| Kirigami | `kirigami` | `qml6-module-org-kde-kirigami` |
+| Breeze style for Qt Quick (optional) | `qqc2-desktop-style` | `qml6-module-org-kde-desktop` |
+| Tray icon | part of `qt6-declarative` | `qml6-module-qt-labs-platform` |
+| KDE color schemes, window blur | `kcolorscheme`, `kwindowsystem` | `libkf6colorscheme-dev`, `libkf6windowsystem-dev` |
+| Audio engine | `mpv` | `mpv` |
+| Build tools | `rust` (1.80+), `base-devel` | Rust 1.80+ ([rustup](https://rustup.rs)), `build-essential` |
 
-Build:
-
-- Rust 1.80 or newer (`cargo`)
-- `qmake6` (part of `qt6-base`)
-- A C++ compiler
+On Debian/Ubuntu you also need the Qt Quick modules `qml6-module-qtquick-controls`,
+`qml6-module-qtquick-layouts`, `qml6-module-qtquick-templates`, `qml6-module-qtquick-window` and
+`qml6-module-qtqml-workerscript` at runtime.
 
 ## Installation
 
@@ -58,8 +65,9 @@ Download a package from the [latest release](https://github.com/gollum161/tidal-
 | Debian 13, Ubuntu 25.04 or newer | `.deb` | `sudo apt install ./tidal-kde-*.deb` |
 | Other Linux systems | `.AppImage` | `chmod +x tidal-kde-*.AppImage`, then run it |
 
-The AppImage bundles Qt, Kirigami and the Breeze style, but not mpv: install `mpv` with your
-package manager. It needs glibc 2.41 or newer (e.g. Fedora 42+, openSUSE Tumbleweed).
+The AppImage bundles Qt, Kirigami, the Breeze style, Breeze icons and the Breeze color schemes,
+but not mpv: install `mpv` with your package manager. It needs glibc 2.41 or newer (e.g. Fedora 42+,
+openSUSE Tumbleweed).
 
 There is no Windows build yet.
 
