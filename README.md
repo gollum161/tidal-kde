@@ -23,8 +23,12 @@ Kirigami (QML) user interface.
 - Time-synced lyrics that follow playback (when TIDAL has them)
 - MPRIS media controls: media keys, the Plasma media applet and the lock screen all work
 - Streaming quality setting (up to 16-bit / 44.1 kHz FLAC)
-- Volume and quality are remembered between sessions
+- System tray icon: closing the window keeps the music playing (can be turned off)
+- Themes: pick any installed KDE color scheme (Breeze, Breeze Dark, …) or follow the system
+- Adjustable background opacity, optionally with the background blurred (KWin)
+- All settings (volume, quality, theme, opacity, tray) are remembered between sessions
 - Native look on Plasma through the Breeze Qt Quick style
+- Only one instance: starting the app again brings the running window back
 
 ## Requirements
 
@@ -99,7 +103,7 @@ terminal to see QML errors with file and line numbers.
 | Path | Contents |
 | --- | --- |
 | `~/.config/tidal-kde/session.json` | Login tokens (readable by you only). Delete it to sign out. |
-| `~/.config/tidal-kde/settings.json` | Streaming quality and volume |
+| `~/.config/tidal-kde/settings.json` | Streaming quality, volume, color scheme, opacity, blur, tray |
 | `~/.config/tidal-kde/client.json` | Optional: your own API client credentials (see below) |
 | `~/.cache/tidal-kde/` | Cached cover art |
 
@@ -121,7 +125,8 @@ Save this as `~/.config/tidal-kde/client.json`.
   supported yet.
 - "Saved playlists" (playlists by other users that you follow) use an older API endpoint. If it
   fails, they are silently skipped.
-- Closing the window stops playback; there is no tray icon yet.
+- Without a system tray (e.g. GNOME without an AppIndicator extension), closing the window quits.
+- Blur behind the window needs a compositor that supports it (KWin on KDE Plasma).
 - The queue can't be reordered by drag and drop yet.
 - Linux only for now.
 

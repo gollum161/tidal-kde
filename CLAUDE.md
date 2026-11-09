@@ -21,7 +21,13 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
   `TIDAL_KDE_QML=/path/file.qml` loads a different root file (for testing).
 - `qml/` – Kirigami UI: `Main.qml` (window, global drawer sidebar, page stack, footer player bar),
   `ItemListPage.qml` (search, library and album/artist/playlist pages), `QueuePage.qml`,
-  `LyricsPage.qml`, `LoginPage.qml`, `PlayerBar.qml`, `CoverImage.qml`.
+  `LyricsPage.qml`, `LoginPage.qml`, `PlayerBar.qml`, `CoverImage.qml`, `SettingsPage.qml`
+  (color scheme, background opacity, blur, close-to-tray), `TrayIcon.qml` (Qt.labs.platform
+  SystemTrayIcon; uses `icon.source` from qrc because labs ignores `source` when `name` is set).
+- `src/appearance.rs` – lists installed KDE color schemes (`*.colors` in XDG data dirs) and wraps
+  the C functions in app.cpp: `KColorSchemeManager` (scheme by file id, autosave off — the choice
+  lives in settings.json) and `KWindowEffects` blur. Links KF6ColorScheme + KF6WindowSystem
+  (headers from `/usr/include/KF6/K<Name>`, override with `KF6_INCLUDE_DIR`).
 - `packaging/PKGBUILD` – Arch package build (also installs `LICENSE` and the app icon).
 - `icons/io.github.tidal_kde.TidalKde.svg` – app icon (desktop file `Icon=` uses this id).
 - `.github/workflows/packages.yml` + `packaging/ci/` – CI: `debian.sh` builds `.deb` and AppImage
@@ -43,7 +49,17 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
 - QML → Rust: tracks go back as JSON strings (`Backend.playTracks(JSON.stringify(tracks), index)`).
 - Persistent settings live in `~/.config/tidal-kde/settings.json` (`Settings` in bridge.rs:
   streaming quality and volume). The volume is restored into mpv before its `volume` property is
-  observed, and saved whenever mpv reports a change (slider or MPRIS).
+  observed, and saved whenever mpv reports a change (slider or MPRIS). Also color scheme,
+  window opacity (0.2–1), blur and close-to-tray; the scheme is applied in `Backend::initialize`,
+  before the window is shown.
+- Translucency: windows have an alpha buffer (`setDefaultAlphaBuffer` in app.cpp); the window
+  color carries the alpha, and `Binding`s in Main.qml/PlayerBar.qml fade Kirigami's own opaque
+  backgrounds (current page → 0, page toolbar/drawer/footer → same alpha, so bars stay a bit
+  more solid).
+- KWindowEffects only knows blur is available after a Wayland roundtrip: the first query always
+  says no. app.cpp asks once at startup, Main.qml re-applies after 1 s.
+- Single instance: app.cpp checks D-Bus for `org.mpris.MediaPlayer2.tidal_kde` and sends MPRIS
+  `Raise` instead of starting a second copy (the first may be hidden in the tray).
 - Background work runs on `std::thread`s and returns results via `qt_thread().queue(...)`.
   Generation counters (`gen`, `lyrics_gen`) drop stale results.
 
@@ -58,7 +74,9 @@ QMAKE=/usr/bin/qmake6 cargo build --release && ./target/release/tidal-kde
 ```
 
 QML changes are compiled into the binary: `touch build.rs` if a rebuild doesn't pick them up.
-Run from a terminal to see QML errors (they include file:line). Without a terminal Qt logs to the
+Run from a terminal to see QML errors (they include file:line).
+`TIDAL_KDE_SCREENSHOT=/path.png` (+ optional `TIDAL_KDE_SCREENSHOT_DELAY` ms) saves the window and
+quits — with `QT_QPA_PLATFORM=offscreen` this checks the UI without a display. Without a terminal Qt logs to the
 journal; `QT_FORCE_STDERR_LOGGING=1` forces stderr. The startup warning "Created graphical object
 was not placed in the graphics scene" comes from Kirigami's `pageStack.push(Component)` and is harmless.
 
@@ -81,6 +99,5 @@ was not placed in the graphics scene" comes from Kirigami's `pageStack.push(Comp
 - Live TIDAL calls (login, browsing, playback, lyrics) need checking against the real service.
 - "Saved playlists" use an older v1 endpoint and are skipped silently if it fails.
 - Quality tops out at 16-bit FLAC (Hi-Res uses MPEG-DASH, not supported).
-- Not done yet: drag-and-drop queue reordering, a tray icon or background playback after
-  closing the window, an About page, a Windows build (.exe: needs mpv over named pipes,
+- Not done yet: drag-and-drop queue reordering, an About page, a Windows build (.exe: needs mpv over named pipes,
   Kirigami built in CI, bundled mpv.exe, no Breeze style).

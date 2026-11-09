@@ -3,7 +3,8 @@
 # and installs it for a smoke test.
 . "$(dirname "$0")/common.sh"
 
-pacman -Syu --noconfirm --needed rust qt6-base qt6-declarative kirigami qqc2-desktop-style mpv
+pacman -Syu --noconfirm --needed rust qt6-base qt6-declarative kirigami qqc2-desktop-style \
+	kcolorscheme kwindowsystem mpv
 
 # makepkg refuses to run as root
 useradd -m builder

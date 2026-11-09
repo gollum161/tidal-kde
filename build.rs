@@ -17,10 +17,20 @@ fn reject_gcc_lto_flags() {
     }
 }
 
+/// KDE Frameworks used by cpp/app.cpp (colour schemes, window blur).
+/// Headers live in KF6/K<Name>, the library is libKF6<Name> (KColorScheme, KF6ColorScheme).
+const KF6_FRAMEWORKS: [&str; 2] = ["ColorScheme", "WindowSystem"];
+
+/// KF6 installs its headers in <prefix>/include/KF6/<Framework> (Arch, Debian, Fedora).
+fn kf6_include_dir() -> String {
+    std::env::var("KF6_INCLUDE_DIR").unwrap_or_else(|_| "/usr/include/KF6".into())
+}
+
 fn main() {
     reject_gcc_lto_flags();
 
     CxxQtBuilder::new()
+        .qt_module("DBus")
         .qt_module("Network")
         .qt_module("Quick")
         .qt_module("QuickControls2")
@@ -36,14 +46,26 @@ fn main() {
                 "qml/LoginPage.qml",
                 "qml/PlayerBar.qml",
                 "qml/CoverImage.qml",
+                "qml/SettingsPage.qml",
+                "qml/TrayIcon.qml",
             ],
+            // Fallback app icon for the tray and window when it isn't installed in
+            // the icon theme (dev builds): qrc:/qt/qml/org/tidalkde/icons/…
+            qrc_files: &["icons/io.github.tidal_kde.TidalKde.svg"],
             ..Default::default()
         })
         .cc_builder(|cc| {
             let version = format!("\"{}\"", env!("CARGO_PKG_VERSION"));
             cc.define("TIDAL_KDE_VERSION", version.as_str());
+            for framework in KF6_FRAMEWORKS {
+                cc.include(format!("{}/K{framework}", kf6_include_dir()));
+            }
             cc.file("cpp/app.cpp");
         })
         .build();
     println!("cargo:rerun-if-changed=cpp/app.cpp");
+    println!("cargo:rerun-if-env-changed=KF6_INCLUDE_DIR");
+    for framework in KF6_FRAMEWORKS {
+        println!("cargo:rustc-link-lib=KF6{framework}");
+    }
 }

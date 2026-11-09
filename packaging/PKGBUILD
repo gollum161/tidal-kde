@@ -5,15 +5,16 @@
 #  which would otherwise overlap the project's Rust src/ folder.)
 
 pkgname=tidal-kde
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Unofficial KDE (Kirigami) TIDAL client with synced lyrics, a play queue and MPRIS"
 arch=('x86_64' 'aarch64')
 url='https://github.com/gollum161/tidal-kde'
 license=('MIT')
-depends=('qt6-base' 'qt6-declarative' 'kirigami' 'qqc2-desktop-style' 'mpv')
+depends=('qt6-base' 'qt6-declarative' 'kirigami' 'qqc2-desktop-style' 'kcolorscheme' 'kwindowsystem' 'mpv')
 makedepends=('cargo')
-optdepends=('breeze-icons: icons when running outside Plasma')
+optdepends=('breeze-icons: icons when running outside Plasma'
+            'breeze: Breeze color schemes')
 # GCC LTO objects can't be linked by Rust's linker (lld): "undefined symbol" errors.
 options=('!lto' '!debug')
 

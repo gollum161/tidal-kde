@@ -11,7 +11,8 @@ APPIMAGETOOL_VERSION=1.9.1
 # Runtime QML modules. Kirigami and the Qt Quick modules are required;
 # the Breeze style (org.kde.desktop) is used when present.
 QML_RUNTIME="qml6-module-org-kde-kirigami qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript"
+qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
+qml6-module-qt-labs-platform"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
@@ -19,7 +20,9 @@ apt-get update
 apt-get install -y --no-install-recommends \
 	build-essential ca-certificates curl file pkg-config \
 	qmake6 qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
-	qt6-wayland qt6-svg-plugins qml6-module-org-kde-desktop breeze-icon-theme $QML_RUNTIME
+	libkf6colorscheme-dev libkf6windowsystem-dev \
+	qt6-wayland qt6-svg-plugins qml6-module-org-kde-desktop breeze-icon-theme kde-style-breeze-data \
+	$QML_RUNTIME
 
 curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 . "$HOME/.cargo/env"
@@ -54,7 +57,7 @@ Architecture: amd64
 Maintainer: gollum161 <gollum161@users.noreply.github.com>
 Installed-Size: $(du -sk "$root/usr" | cut -f1)
 Depends: $shlibs, mpv, $(echo $QML_RUNTIME | sed 's/ /, /g')
-Recommends: qml6-module-org-kde-desktop, breeze-icon-theme
+Recommends: qml6-module-org-kde-desktop, breeze-icon-theme, kde-style-breeze-data
 Section: sound
 Priority: optional
 Homepage: https://github.com/gollum161/tidal-kde
@@ -81,6 +84,12 @@ install_files "$appdir"
 # Breeze icons for desktops without them (the app falls back to this theme)
 mkdir -p "$appdir/usr/share/icons"
 cp -r /usr/share/icons/breeze "$appdir/usr/share/icons/"
+# Breeze colour schemes for the theme setting (found through XDG_DATA_DIRS, see app.cpp)
+cp -r /usr/share/color-schemes "$appdir/usr/share/"
+# KWindowSystem's Wayland/X11 plugins (window blur); their libraries are deployed below
+kwsdir="$appdir/usr/plugins/kf6/kwindowsystem"
+mkdir -p "$kwsdir"
+cp /usr/lib/x86_64-linux-gnu/qt6/plugins/kf6/kwindowsystem/*.so "$kwsdir/"
 
 # The plugin bundles every QML module imported by these files (incl. the Breeze style,
 # which the app loads at runtime, see packaging/appimage/runtime-imports.qml).
@@ -91,6 +100,7 @@ linuxdeploy --appdir "$appdir" \
 	--executable "$appdir/usr/bin/tidal-kde" \
 	--desktop-file "$appdir/usr/share/applications/$app_id.desktop" \
 	--icon-file "$appdir/usr/share/icons/hicolor/scalable/apps/$app_id.svg" \
+	--deploy-deps-only "$kwsdir" \
 	--plugin qt
 ARCH=x86_64 appimagetool --no-appstream "$appdir" "dist/$PKG.AppImage"
 

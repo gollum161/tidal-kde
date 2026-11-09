@@ -35,6 +35,13 @@ pub mod qobject {
         #[qproperty(bool, lyrics_synced)]
         #[qproperty(i32, lyrics_index)]
         #[qproperty(QString, quality)]
+        // Appearance and behaviour settings (saved in settings.json)
+        #[qproperty(QString, color_scheme)]
+        #[qproperty(QString, color_schemes_json)]
+        #[qproperty(f64, window_opacity)]
+        #[qproperty(bool, blur)]
+        #[qproperty(bool, blur_available)]
+        #[qproperty(bool, close_to_tray)]
         type Backend = super::BackendRust;
 
         #[qinvokable]
@@ -75,6 +82,19 @@ pub mod qobject {
         fn like(self: Pin<&mut Backend>, kind: &QString, id: &QString);
         #[qinvokable]
         fn set_stream_quality(self: Pin<&mut Backend>, quality: &QString);
+        /// Empty id = follow the system colour scheme.
+        #[qinvokable]
+        fn change_color_scheme(self: Pin<&mut Backend>, id: &QString);
+        /// Background opacity of the window, 0.2–1.0.
+        #[qinvokable]
+        fn change_window_opacity(self: Pin<&mut Backend>, value: f64);
+        #[qinvokable]
+        fn change_blur(self: Pin<&mut Backend>, enable: bool);
+        #[qinvokable]
+        fn change_close_to_tray(self: Pin<&mut Backend>, enable: bool);
+        /// Called by the window once it exists (blur needs a native window).
+        #[qinvokable]
+        fn apply_window_effects(self: Pin<&mut Backend>);
 
         #[qsignal]
         fn page_loaded(self: Pin<&mut Backend>, request: i32, payload: QString);
@@ -92,6 +112,7 @@ pub mod qobject {
     impl cxx_qt::Initialize for Backend {}
 }
 
+use crate::appearance;
 use crate::mpv::Mpv;
 use crate::tidal::{config_dir, Lyrics, Tidal, Track};
 use core::pin::Pin;
@@ -115,13 +136,30 @@ struct Settings {
     quality: String,
     /// 0–100, restored into mpv at startup.
     volume: f64,
+    /// KDE colour scheme id (file name without `.colors`); empty = system.
+    color_scheme: String,
+    /// Background opacity of the window, MIN_WINDOW_OPACITY–1.0.
+    window_opacity: f64,
+    /// Blur behind a translucent window (KWin).
+    blur: bool,
+    /// Closing the window hides it to the tray and keeps playing.
+    close_to_tray: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { quality: "LOSSLESS".into(), volume: 100.0 }
+        Settings {
+            quality: "LOSSLESS".into(),
+            volume: 100.0,
+            color_scheme: String::new(),
+            window_opacity: 1.0,
+            blur: true,
+            close_to_tray: true,
+        }
     }
 }
+
+const MIN_WINDOW_OPACITY: f64 = 0.2;
 
 fn load_settings() -> Settings {
     std::fs::read_to_string(config_dir().join("settings.json"))
@@ -185,6 +223,12 @@ pub struct BackendRust {
     lyrics_synced: bool,
     lyrics_index: i32,
     quality: QString,
+    color_scheme: QString,
+    color_schemes_json: QString,
+    window_opacity: f64,
+    blur: bool,
+    blur_available: bool,
+    close_to_tray: bool,
     core: Core,
 }
 
@@ -192,6 +236,11 @@ impl Default for BackendRust {
     fn default() -> Self {
         let mut settings = load_settings();
         settings.volume = settings.volume.clamp(0.0, 100.0);
+        settings.window_opacity = settings.window_opacity.clamp(MIN_WINDOW_OPACITY, 1.0);
+        let schemes = appearance::color_schemes();
+        if !schemes.iter().any(|s| s.id == settings.color_scheme) {
+            settings.color_scheme.clear(); // uninstalled scheme → system
+        }
         BackendRust {
             logged_in: false,
             connecting: true,
@@ -215,6 +264,12 @@ impl Default for BackendRust {
             lyrics_synced: false,
             lyrics_index: -1,
             quality: qs(&settings.quality),
+            color_scheme: qs(&settings.color_scheme),
+            color_schemes_json: qs(&serde_json::to_string(&schemes).unwrap_or_else(|_| "[]".into())),
+            window_opacity: settings.window_opacity,
+            blur: settings.blur,
+            blur_available: false,
+            close_to_tray: settings.close_to_tray,
             core: Core {
                 tidal: Arc::new(Tidal::new()),
                 mpv: None,
@@ -237,6 +292,12 @@ impl Default for BackendRust {
 impl cxx_qt::Initialize for qobject::Backend {
     fn initialize(mut self: Pin<&mut Self>) {
         let thread = self.qt_thread();
+
+        // The singleton is created while the QML loads, before the window is
+        // shown, so the saved colour scheme is in place from the first frame.
+        if !self.core().settings.color_scheme.is_empty() {
+            appearance::apply_color_scheme(&self.core().settings.color_scheme);
+        }
 
         let t = thread.clone();
         match Mpv::spawn(move |msg| {
@@ -387,6 +448,48 @@ impl qobject::Backend {
         save_settings(&self.core().settings);
         self.as_mut().set_quality(qs(&q));
         self.message("Streaming quality changed. It applies from the next track.");
+    }
+
+    // ─── appearance & behaviour settings ────────────────────────────────────
+
+    pub fn change_color_scheme(mut self: Pin<&mut Self>, id: &QString) {
+        let id = id.to_string();
+        appearance::apply_color_scheme(&id);
+        self.as_mut().core_mut().settings.color_scheme = id.clone();
+        save_settings(&self.core().settings);
+        self.set_color_scheme(qs(&id));
+    }
+
+    pub fn change_window_opacity(mut self: Pin<&mut Self>, value: f64) {
+        let value = value.clamp(MIN_WINDOW_OPACITY, 1.0);
+        if (self.core().settings.window_opacity - value).abs() < 0.001 {
+            return;
+        }
+        self.as_mut().core_mut().settings.window_opacity = value;
+        save_settings(&self.core().settings);
+        self.as_mut().set_window_opacity(value);
+        self.apply_window_effects();
+    }
+
+    pub fn change_blur(mut self: Pin<&mut Self>, enable: bool) {
+        self.as_mut().core_mut().settings.blur = enable;
+        save_settings(&self.core().settings);
+        self.as_mut().set_blur(enable);
+        self.apply_window_effects();
+    }
+
+    pub fn change_close_to_tray(mut self: Pin<&mut Self>, enable: bool) {
+        self.as_mut().core_mut().settings.close_to_tray = enable;
+        save_settings(&self.core().settings);
+        self.set_close_to_tray(enable);
+    }
+
+    /// Blur only makes sense behind a translucent window.
+    pub fn apply_window_effects(mut self: Pin<&mut Self>) {
+        let available = appearance::blur_available();
+        self.as_mut().set_blur_available(available);
+        let s = &self.core().settings;
+        appearance::apply_blur(available && s.blur && s.window_opacity < 1.0);
     }
 
     // ─── queue ───────────────────────────────────────────────────────────────

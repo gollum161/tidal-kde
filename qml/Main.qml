@@ -8,12 +8,17 @@ Kirigami.ApplicationWindow {
     id: root
 
     property string section: ""
+    // Background opacity from the settings; text and covers stay opaque.
+    readonly property real surfaceAlpha: Backend.windowOpacity
+    readonly property bool translucent: surfaceAlpha < 1
+    readonly property bool trayAvailable: tray.available
 
     title: Backend.title !== "" ? Backend.title + " — " + Backend.artist : "Tidal KDE"
     width: Kirigami.Units.gridUnit * 66
     height: Kirigami.Units.gridUnit * 42
     minimumWidth: Kirigami.Units.gridUnit * 34
     minimumHeight: Kirigami.Units.gridUnit * 26
+    color: Qt.alpha(Kirigami.Theme.backgroundColor, surfaceAlpha)
 
     pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
@@ -25,6 +30,8 @@ Kirigami.ApplicationWindow {
             pageStack.push(queuePage)
         } else if (name === "lyrics") {
             pageStack.push(lyricsPage)
+        } else if (name === "settings") {
+            pageStack.push(settingsPage)
         } else {
             pageStack.push(listPage, { mode: name })
         }
@@ -48,7 +55,54 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Component.onCompleted: refreshRoot()
+    Component.onCompleted: {
+        refreshRoot()
+        Backend.applyWindowEffects()
+    }
+    // Blur support is only known after the compositor answered (see app.cpp).
+    Timer {
+        interval: 1000
+        running: true
+        onTriggered: Backend.applyWindowEffects()
+    }
+    // A hidden window loses its native surface; restore the blur when it comes back.
+    onVisibleChanged: if (visible) Backend.applyWindowEffects()
+
+    // With a tray icon, closing only hides the window and playback continues.
+    onClosing: close => {
+        if (tray.available && Backend.closeToTray) {
+            close.accepted = false
+            root.hide()
+        }
+    }
+
+    TrayIcon {
+        id: tray
+        window: root
+    }
+
+    // Kirigami paints opaque backgrounds for pages, page toolbars, the sidebar
+    // and the footer. When translucent, pages show the window background and
+    // the bars fade with it (they stay a little more solid than the content).
+    Binding {
+        target: root.pageStack.currentItem ? root.pageStack.currentItem.background : null
+        property: "opacity"
+        value: 0
+        when: root.translucent && target !== null
+    }
+    Binding {
+        target: root.pageStack.currentItem && root.pageStack.currentItem.globalToolBarItem
+            ? root.pageStack.currentItem.globalToolBarItem.background : null
+        property: "opacity"
+        value: root.surfaceAlpha
+        when: root.translucent && target !== null
+    }
+    Binding {
+        target: drawer.background
+        property: "opacity"
+        value: root.surfaceAlpha
+        when: root.translucent && target !== null
+    }
 
     Connections {
         target: Backend
@@ -122,6 +176,11 @@ Kirigami.ApplicationWindow {
                 }
             },
             Kirigami.Action {
+                text: "Settings"; icon.name: "configure"
+                checkable: true; checked: root.section === "settings"
+                onTriggered: root.showSection("settings")
+            },
+            Kirigami.Action {
                 text: "Log out"; icon.name: "system-log-out"
                 onTriggered: Backend.logout()
             }
@@ -148,6 +207,7 @@ Kirigami.ApplicationWindow {
     Component { id: queuePage; QueuePage {} }
     Component { id: lyricsPage; LyricsPage {} }
     Component { id: loginPage; LoginPage {} }
+    Component { id: settingsPage; SettingsPage {} }
     Component {
         id: connectingPage
         Kirigami.Page {
