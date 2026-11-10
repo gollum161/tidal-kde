@@ -61,7 +61,7 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
   color carries the alpha, and `Binding`s in Main.qml/PlayerBar.qml fade Kirigami's own opaque
   backgrounds: current page → 0, page toolbar/drawer/footer → `barOverlay` (0.25) on top of the
   window alpha. (Giving the bars the same alpha as the window compounded to 75–90 % and hid the
-  blur.) The settings page shows *transparency* (0–80 %, presets Off/Light/Medium/Strong);
+  blur.) The settings page shows *transparency* (0–95 %, presets Off/Light/Medium/Strong);
   settings.json stores `window_opacity` = 1 − transparency.
 - mpv is started with `PR_SET_PDEATHSIG` (mpv.rs) so it dies with the app on a crash/kill;
   it must be spawned from the Qt main thread for that to hold.

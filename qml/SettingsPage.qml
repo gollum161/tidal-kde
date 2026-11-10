@@ -36,7 +36,7 @@ Kirigami.ScrollablePage {
             QQC2.Slider {
                 id: transparencySlider
                 from: 0
-                to: 0.8
+                to: 0.95 // = MIN_WINDOW_OPACITY 0.05 in bridge.rs
                 stepSize: 0.05
                 snapMode: QQC2.Slider.SnapAlways
                 value: 1 - Backend.windowOpacity

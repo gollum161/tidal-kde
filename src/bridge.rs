@@ -85,7 +85,7 @@ pub mod qobject {
         /// Empty id = follow the system colour scheme.
         #[qinvokable]
         fn change_color_scheme(self: Pin<&mut Backend>, id: &QString);
-        /// Background opacity of the window, 0.2–1.0.
+        /// Background opacity of the window, 0.05–1.0.
         #[qinvokable]
         fn change_window_opacity(self: Pin<&mut Backend>, value: f64);
         #[qinvokable]
@@ -159,7 +159,8 @@ impl Default for Settings {
     }
 }
 
-const MIN_WINDOW_OPACITY: f64 = 0.2;
+/// Lowest window opacity = highest transparency (95 %); fully clear would hide the window.
+const MIN_WINDOW_OPACITY: f64 = 0.05;
 
 fn load_settings() -> Settings {
     std::fs::read_to_string(config_dir().join("settings.json"))

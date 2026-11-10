@@ -84,6 +84,30 @@ Kirigami.ApplicationWindow {
         window: root
     }
 
+    // Logging out needs a confirmation: a misclick in the sidebar would otherwise
+    // end the session and stop playback right away.
+    Kirigami.PromptDialog {
+        id: logoutDialog
+        title: "Log out of TIDAL?"
+        subtitle: "Playback stops and the queue is cleared. To log back in, you'll approve this device on TIDAL's website again."
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: "Log out"
+                icon.name: "system-log-out"
+                onTriggered: {
+                    logoutDialog.close()
+                    Backend.logout()
+                }
+            },
+            Kirigami.Action {
+                text: "Cancel"
+                icon.name: "dialog-cancel"
+                onTriggered: logoutDialog.close()
+            }
+        ]
+    }
+
     // Kirigami paints opaque backgrounds for pages, page toolbars, the sidebar
     // and the footer. When translucent, pages show only the window background and
     // the bars add a light layer (barOverlay) on top of it.
@@ -185,7 +209,7 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 text: "Log out"; icon.name: "system-log-out"
-                onTriggered: Backend.logout()
+                onTriggered: logoutDialog.open()
             }
         ]
     }
