@@ -42,6 +42,10 @@ pub mod qobject {
         #[qproperty(bool, blur)]
         #[qproperty(bool, blur_available)]
         #[qproperty(bool, close_to_tray)]
+        #[qproperty(bool, autostart)]
+        #[qproperty(bool, autostart_hidden)]
+        /// [{id, title, cover}] of the user's playlists, for the sidebar
+        #[qproperty(QString, sidebar_playlists_json)]
         type Backend = super::BackendRust;
 
         #[qinvokable]
@@ -92,6 +96,15 @@ pub mod qobject {
         fn change_blur(self: Pin<&mut Backend>, enable: bool);
         #[qinvokable]
         fn change_close_to_tray(self: Pin<&mut Backend>, enable: bool);
+        /// Start on login (XDG autostart entry).
+        #[qinvokable]
+        fn change_autostart(self: Pin<&mut Backend>, enable: bool);
+        /// Whether the autostart entry starts the app hidden in the tray.
+        #[qinvokable]
+        fn change_autostart_hidden(self: Pin<&mut Backend>, hidden: bool);
+        /// Reloads the playlists shown in the sidebar.
+        #[qinvokable]
+        fn refresh_sidebar_playlists(self: Pin<&mut Backend>);
         /// Called by the window once it exists (blur needs a native window).
         #[qinvokable]
         fn apply_window_effects(self: Pin<&mut Backend>);
@@ -113,6 +126,7 @@ pub mod qobject {
 }
 
 use crate::appearance;
+use crate::autostart;
 use crate::mpv::Mpv;
 use crate::tidal::{config_dir, Lyrics, Tidal, Track};
 use core::pin::Pin;
@@ -144,6 +158,8 @@ struct Settings {
     blur: bool,
     /// Closing the window hides it to the tray and keeps playing.
     close_to_tray: bool,
+    /// The autostart entry starts the app hidden in the tray.
+    autostart_hidden: bool,
 }
 
 impl Default for Settings {
@@ -155,6 +171,7 @@ impl Default for Settings {
             window_opacity: 1.0,
             blur: true,
             close_to_tray: true,
+            autostart_hidden: true,
         }
     }
 }
@@ -230,6 +247,9 @@ pub struct BackendRust {
     blur: bool,
     blur_available: bool,
     close_to_tray: bool,
+    autostart: bool,
+    autostart_hidden: bool,
+    sidebar_playlists_json: QString,
     core: Core,
 }
 
@@ -271,6 +291,9 @@ impl Default for BackendRust {
             blur: settings.blur,
             blur_available: false,
             close_to_tray: settings.close_to_tray,
+            autostart: autostart::is_enabled(),
+            autostart_hidden: settings.autostart_hidden,
+            sidebar_playlists_json: qs("[]"),
             core: Core {
                 tidal: Arc::new(Tidal::new()),
                 mpv: None,
@@ -298,6 +321,10 @@ impl cxx_qt::Initialize for qobject::Backend {
         // shown, so the saved colour scheme is in place from the first frame.
         if !self.core().settings.color_scheme.is_empty() {
             appearance::apply_color_scheme(&self.core().settings.color_scheme);
+        }
+        // Rewrite an existing autostart entry so it points at this binary/AppImage.
+        if *self.autostart() {
+            let _ = autostart::set_enabled(true, self.core().settings.autostart_hidden);
         }
 
         let t = thread.clone();
@@ -401,6 +428,7 @@ impl qobject::Backend {
     pub fn logout(mut self: Pin<&mut Self>) {
         self.as_mut().queue_clear();
         self.core().tidal.logout();
+        self.as_mut().set_sidebar_playlists_json(qs("[]"));
         self.as_mut().set_logged_in(false);
     }
 
@@ -433,8 +461,13 @@ impl qobject::Backend {
         let thread = self.qt_thread();
         std::thread::spawn(move || {
             let result = tidal.like(&kind, &id);
-            let _ = thread.queue(move |b| match result {
-                Ok(()) => b.message("Added to favorites"),
+            let _ = thread.queue(move |mut b| match result {
+                Ok(()) => {
+                    b.as_mut().message("Added to favorites");
+                    if kind == "playlist" {
+                        b.refresh_sidebar_playlists();
+                    }
+                }
                 Err(e) => b.message(format!("Couldn't add to favorites: {e}")),
             });
         });
@@ -483,6 +516,42 @@ impl qobject::Backend {
         self.as_mut().core_mut().settings.close_to_tray = enable;
         save_settings(&self.core().settings);
         self.set_close_to_tray(enable);
+    }
+
+    pub fn change_autostart(mut self: Pin<&mut Self>, enable: bool) {
+        match autostart::set_enabled(enable, self.core().settings.autostart_hidden) {
+            Ok(()) => self.as_mut().set_autostart(enable),
+            Err(e) => self.as_mut().message(format!("Couldn't change the autostart entry: {e}")),
+        }
+    }
+
+    pub fn change_autostart_hidden(mut self: Pin<&mut Self>, hidden: bool) {
+        self.as_mut().core_mut().settings.autostart_hidden = hidden;
+        save_settings(&self.core().settings);
+        self.as_mut().set_autostart_hidden(hidden);
+        if *self.autostart() {
+            if let Err(e) = autostart::set_enabled(true, hidden) {
+                self.message(format!("Couldn't change the autostart entry: {e}"));
+            }
+        }
+    }
+
+    pub fn refresh_sidebar_playlists(self: Pin<&mut Self>) {
+        let tidal = self.core().tidal.clone();
+        let thread = self.qt_thread();
+        std::thread::spawn(move || {
+            // Same list as the Playlists page: own playlists, then saved ones.
+            let Ok(page) = tidal.favorites("playlists") else { return };
+            let list: Vec<Value> = page.rows.iter()
+                .map(|r| json!({ "id": r.rid, "title": r.title, "cover": r.cover }))
+                .collect();
+            let text = serde_json::to_string(&list).unwrap_or_else(|_| "[]".into());
+            let _ = thread.queue(move |b| {
+                if *b.logged_in() {
+                    b.set_sidebar_playlists_json(qs(&text));
+                }
+            });
+        });
     }
 
     /// Blur only makes sense behind a translucent window.

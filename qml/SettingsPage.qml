@@ -89,6 +89,25 @@ Kirigami.ScrollablePage {
 
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: "Playback"
+        }
+
+        QQC2.ComboBox {
+            Kirigami.FormData.label: "Streaming quality:"
+            readonly property var qualities: [
+                { id: "LOSSLESS", name: "Lossless (FLAC, 16-bit)" },
+                { id: "HIGH", name: "High (320 kbps)" },
+                { id: "LOW", name: "Low (96 kbps)" }
+            ]
+            model: qualities
+            textRole: "name"
+            valueRole: "id"
+            currentIndex: Math.max(0, qualities.findIndex(q => q.id === Backend.quality))
+            onActivated: Backend.setStreamQuality(currentValue)
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
             Kirigami.FormData.label: "Behavior"
         }
 
@@ -101,6 +120,32 @@ Kirigami.ScrollablePage {
         QQC2.Label {
             visible: !applicationWindow().trayAvailable
             text: "No system tray was found, so closing the window quits the app."
+            font: Kirigami.Theme.smallFont
+            opacity: 0.7
+            wrapMode: Text.Wrap
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: "Startup"
+        }
+
+        QQC2.CheckBox {
+            Kirigami.FormData.label: "On login:"
+            text: "Start Tidal KDE when I log in"
+            checked: Backend.autostart
+            onToggled: Backend.changeAutostart(checked)
+        }
+        QQC2.CheckBox {
+            text: "Start hidden in the system tray"
+            checked: Backend.autostartHidden
+            enabled: Backend.autostart && Backend.closeToTray
+            onToggled: Backend.changeAutostartHidden(checked)
+        }
+        QQC2.Label {
+            visible: Backend.autostart && !Backend.closeToTray
+            text: "Starting hidden needs \"Keep playing in the tray\" above."
             font: Kirigami.Theme.smallFont
             opacity: 0.7
             wrapMode: Text.Wrap

@@ -15,6 +15,14 @@ Kirigami.ApplicationWindow {
     // Bars (page toolbar, sidebar, player bar) add this much of their own background on
     // top of the translucent window, so they stay a little more solid than the content.
     readonly property real barOverlay: 0.25
+    // Started by the autostart entry with --hidden: stay in the tray (if there is one).
+    readonly property bool startHidden: Qt.application.arguments.indexOf("--hidden") >= 0
+        && Backend.closeToTray && tray.available
+    // How many playlists the sidebar lists before "All playlists…".
+    readonly property int sidebarPlaylistLimit: 10
+    readonly property var sidebarPlaylists: JSON.parse(Backend.sidebarPlaylistsJson)
+
+    visible: !startHidden
 
     title: Backend.title !== "" ? Backend.title + " — " + Backend.artist : "Tidal KDE"
     width: Kirigami.Units.gridUnit * 66
@@ -40,6 +48,13 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // A playlist picked in the sidebar replaces the current page, like a section.
+    function openSidebarPlaylist(id, title) {
+        section = "playlist:" + id
+        pageStack.clear()
+        pageStack.push(listPage, { mode: "playlist", arg: String(id), pageTitle: title })
+    }
+
     function openItem(kind, id, title) {
         if (kind === "album" || kind === "artist" || kind === "playlist") {
             pageStack.push(listPage, { mode: kind, arg: String(id), pageTitle: title })
@@ -55,6 +70,7 @@ Kirigami.ApplicationWindow {
             pageStack.push(loginPage)
         } else {
             showSection("search")
+            Backend.refreshSidebarPlaylists()
         }
     }
 
@@ -146,72 +162,116 @@ Kirigami.ApplicationWindow {
         modal: !root.wideScreen
         width: Kirigami.Units.gridUnit * 13
         isMenu: false
-        actions: [
-            Kirigami.Action {
-                text: "Search"; icon.name: "search"
-                checkable: true; checked: root.section === "search"
-                onTriggered: root.showSection("search")
-            },
-            Kirigami.Action {
-                text: "Favorite tracks"; icon.name: "love"
-                checkable: true; checked: root.section === "tracks"
-                onTriggered: root.showSection("tracks")
-            },
-            Kirigami.Action {
-                text: "Albums"; icon.name: "view-media-album-cover"
-                checkable: true; checked: root.section === "albums"
-                onTriggered: root.showSection("albums")
-            },
-            Kirigami.Action {
-                text: "Artists"; icon.name: "view-media-artist"
-                checkable: true; checked: root.section === "artists"
-                onTriggered: root.showSection("artists")
-            },
-            Kirigami.Action {
-                text: "Playlists"; icon.name: "view-media-playlist"
-                checkable: true; checked: root.section === "playlists"
-                onTriggered: root.showSection("playlists")
-            },
-            Kirigami.Action { separator: true },
-            Kirigami.Action {
-                text: "Queue"; icon.name: "format-list-ordered"
-                checkable: true; checked: root.section === "queue"
-                onTriggered: root.showSection("queue")
-            },
-            Kirigami.Action {
-                text: "Lyrics"; icon.name: "view-media-lyrics"
-                checkable: true; checked: root.section === "lyrics"
-                onTriggered: root.showSection("lyrics")
-            },
-            Kirigami.Action { separator: true },
-            Kirigami.Action {
-                text: "Streaming quality"; icon.name: "audio-x-generic"
-                Kirigami.Action {
-                    text: "Lossless (FLAC)"; checkable: true
-                    checked: Backend.quality === "LOSSLESS"
-                    onTriggered: Backend.setStreamQuality("LOSSLESS")
-                }
-                Kirigami.Action {
-                    text: "High (320 kbps)"; checkable: true
-                    checked: Backend.quality === "HIGH"
-                    onTriggered: Backend.setStreamQuality("HIGH")
-                }
-                Kirigami.Action {
-                    text: "Low (96 kbps)"; checkable: true
-                    checked: Backend.quality === "LOW"
-                    onTriggered: Backend.setStreamQuality("LOW")
-                }
-            },
-            Kirigami.Action {
-                text: "Settings"; icon.name: "configure"
-                checkable: true; checked: root.section === "settings"
-                onTriggered: root.showSection("settings")
-            },
-            Kirigami.Action {
-                text: "Log out"; icon.name: "system-log-out"
-                onTriggered: logoutDialog.open()
+        // Navigation is built from plain delegates rather than drawer actions: with
+        // actions, Kirigami puts a stretching spacer between them and the content
+        // below, which pushed the playlists to the bottom of the sidebar.
+        component SidebarItem: QQC2.ItemDelegate {
+            property string sectionName
+            Layout.fillWidth: true
+            highlighted: root.section === sectionName
+            onClicked: {
+                root.showSection(sectionName)
+                if (drawer.modal) drawer.close()
             }
-        ]
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 0
+
+            SidebarItem { text: "Search"; icon.name: "search"; sectionName: "search" }
+            SidebarItem { text: "Favorite tracks"; icon.name: "love"; sectionName: "tracks" }
+            SidebarItem { text: "Albums"; icon.name: "view-media-album-cover"; sectionName: "albums" }
+            SidebarItem { text: "Artists"; icon.name: "view-media-artist"; sectionName: "artists" }
+            SidebarItem { text: "Playlists"; icon.name: "view-media-playlist"; sectionName: "playlists" }
+            Kirigami.Separator {
+                Layout.fillWidth: true
+                Layout.topMargin: Kirigami.Units.smallSpacing
+                Layout.bottomMargin: Kirigami.Units.smallSpacing
+            }
+            SidebarItem { text: "Queue"; icon.name: "format-list-ordered"; sectionName: "queue" }
+            SidebarItem { text: "Lyrics"; icon.name: "view-media-lyrics"; sectionName: "lyrics" }
+        }
+
+        // The user's playlists, one click away (below the actions, scrolls with them).
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 0
+            visible: root.sidebarPlaylists.length > 0
+
+            Kirigami.ListSectionHeader {
+                text: "Your playlists"
+                Layout.fillWidth: true
+            }
+            Repeater {
+                model: root.sidebarPlaylists.slice(0, root.sidebarPlaylistLimit)
+                delegate: QQC2.ItemDelegate {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    highlighted: root.section === "playlist:" + modelData.id
+                    QQC2.ToolTip.text: modelData.title
+                    QQC2.ToolTip.visible: hovered && label.truncated
+                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        CoverImage {
+                            size: Kirigami.Units.iconSizes.smallMedium
+                            radius: Kirigami.Units.cornerRadius / 2
+                            source: modelData.cover
+                            fallbackIcon: "view-media-playlist"
+                        }
+                        QQC2.Label {
+                            id: label
+                            text: modelData.title
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+                    onClicked: {
+                        root.openSidebarPlaylist(modelData.id, modelData.title)
+                        if (drawer.modal) drawer.close()
+                    }
+                }
+            }
+            QQC2.ItemDelegate {
+                visible: root.sidebarPlaylists.length > root.sidebarPlaylistLimit
+                Layout.fillWidth: true
+                text: "All playlists…"
+                icon.name: "view-more-symbolic"
+                onClicked: {
+                    root.showSection("playlists")
+                    if (drawer.modal) drawer.close()
+                }
+            }
+        }
+
+        // Takes up the remaining height so the lists above stay at the top.
+        Item { Layout.fillHeight: true }
+
+        // Settings and logging out stay at the bottom, out of the way.
+        footer: ColumnLayout {
+            spacing: 0
+            Kirigami.Separator { Layout.fillWidth: true }
+            QQC2.ItemDelegate {
+                Layout.fillWidth: true
+                text: "Settings"
+                icon.name: "configure"
+                highlighted: root.section === "settings"
+                onClicked: {
+                    root.showSection("settings")
+                    if (drawer.modal) drawer.close()
+                }
+            }
+            QQC2.ItemDelegate {
+                Layout.fillWidth: true
+                text: "Log out"
+                icon.name: "system-log-out"
+                onClicked: {
+                    if (drawer.modal) drawer.close()
+                    logoutDialog.open()
+                }
+            }
+        }
     }
 
     footer: PlayerBar {

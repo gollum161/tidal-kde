@@ -1,6 +1,7 @@
 //! tidal-kde: an unofficial KDE (Kirigami) TIDAL client.
 
 mod appearance;
+mod autostart;
 mod bridge;
 mod mpv;
 mod tidal;

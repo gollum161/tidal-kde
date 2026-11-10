@@ -18,16 +18,18 @@ Kirigami (QML) user interface.
 
 - Sign in with your TIDAL account (OAuth device login, the session is remembered)
 - Search, and browse your library: favorite tracks, albums, artists and playlists
+- Your playlists right in the sidebar, one click away
 - Album, artist and playlist pages; add tracks, albums, artists and playlists to your favorites
 - Play queue: play next, add to queue, shuffle upcoming tracks, repeat (off / all / one)
 - Time-synced lyrics that follow playback (when TIDAL has them)
 - MPRIS media controls: media keys, the Plasma media applet and the lock screen all work
 - Streaming quality setting (up to 16-bit / 44.1 kHz FLAC)
 - System tray icon: closing the window keeps the music playing (can be turned off)
+- Start on login, optionally hidden in the tray
 - Themes: pick any installed KDE color scheme (Breeze, Breeze Dark, …) or follow the system
 - Adjustable window transparency (slider or Off/Light/Medium/Strong), optionally with the
   background blurred (KWin)
-- All settings (volume, quality, theme, opacity, tray) are remembered between sessions
+- All settings (volume, quality, theme, transparency, tray, startup) are remembered between sessions
 - Native look on Plasma through the Breeze Qt Quick style
 - Only one instance: starting the app again brings the running window back
 
@@ -112,7 +114,8 @@ terminal to see QML errors with file and line numbers.
 | Path | Contents |
 | --- | --- |
 | `~/.config/tidal-kde/session.json` | Login tokens (readable by you only). Delete it to sign out. |
-| `~/.config/tidal-kde/settings.json` | Streaming quality, volume, color scheme, opacity, blur, tray |
+| `~/.config/tidal-kde/settings.json` | Streaming quality, volume, color scheme, transparency, blur, tray, start hidden |
+| `~/.config/autostart/io.github.tidal_kde.TidalKde.desktop` | Only when "Start Tidal KDE when I log in" is on |
 | `~/.config/tidal-kde/client.json` | Optional: your own API client credentials (see below) |
 | `~/.cache/tidal-kde/` | Cached cover art |
 

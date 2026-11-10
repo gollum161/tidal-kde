@@ -19,7 +19,10 @@ Target platform: Arch Linux, KDE Plasma 6, Qt 6, KF6 Kirigami.
 - `cpp/app.cpp` – creates a `QApplication` (needed for the Breeze `org.kde.desktop` Qt Quick style,
   which cxx-qt-lib doesn't wrap) and loads `qrc:/qt/qml/org/tidalkde/qml/Main.qml`.
   `TIDAL_KDE_QML=/path/file.qml` loads a different root file (for testing).
-- `qml/` – Kirigami UI: `Main.qml` (window, global drawer sidebar, page stack, footer player bar),
+- `qml/` – Kirigami UI: `Main.qml` (window, global drawer sidebar, page stack, footer player bar;
+  the sidebar is built from `SidebarItem` delegates, not drawer `actions` — with actions Kirigami
+  inserts a stretching spacer above custom content. Below the navigation: "Your playlists"
+  (`Backend.sidebarPlaylistsJson`, first 10 + "All playlists…"); footer: Settings, Log out),
   `ItemListPage.qml` (search, library and album/artist/playlist pages), `QueuePage.qml`,
   `LyricsPage.qml`, `LoginPage.qml`, `PlayerBar.qml`, `CoverImage.qml`, `SettingsPage.qml`
   (color scheme, background opacity, blur, close-to-tray), `TrayIcon.qml` (Qt.labs.platform
@@ -111,5 +114,10 @@ was not placed in the graphics scene" comes from Kirigami's `pageStack.push(Comp
 - Live TIDAL calls (login, browsing, playback, lyrics) need checking against the real service.
 - "Saved playlists" use an older v1 endpoint and are skipped silently if it fails.
 - Quality tops out at 16-bit FLAC (Hi-Res uses MPEG-DASH, not supported).
+- `src/autostart.rs` – "start on login": writes/removes `~/.config/autostart/io.github.tidal_kde.TidalKde.desktop`
+  (Exec = `$APPIMAGE`, `tidal-kde` for /usr/bin installs, else the binary path; `--hidden` when
+  "start hidden" is on). An existing entry is rewritten at every start. `--hidden` makes Main.qml
+  start with `visible: false` if close-to-tray is on and a tray is available.
+- Streaming quality is chosen on the settings page (no longer a sidebar submenu).
 - Not done yet: drag-and-drop queue reordering, an About page, a Windows build (.exe: needs mpv over named pipes,
   Kirigami built in CI, bundled mpv.exe, no Breeze style).
