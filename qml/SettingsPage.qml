@@ -211,5 +211,50 @@ Kirigami.ScrollablePage {
             checked: Backend.discordShowPaused
             onToggled: Backend.changeDiscordOption("paused", checked)
         }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: "About"
+        }
+
+        QQC2.Label {
+            Kirigami.FormData.label: "Version:"
+            text: "Tidal KDE " + Qt.application.version // set from Cargo.toml in app.cpp
+        }
+        QQC2.Label {
+            Kirigami.FormData.label: "Libraries:"
+            text: Kirigami.Settings.information.join("\n")
+            wrapMode: Text.Wrap
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+        }
+        QQC2.Button {
+            text: "Copy version info"
+            icon.name: "edit-copy"
+            QQC2.ToolTip.text: "Copies the versions above, e.g. for a bug report"
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            onClicked: {
+                // QML has no clipboard API; a hidden text field can copy, though.
+                clipboardHelper.text = ["Tidal KDE " + Qt.application.version]
+                    .concat(Kirigami.Settings.information).join("\n")
+                clipboardHelper.selectAll()
+                clipboardHelper.copy()
+                applicationWindow().showPassiveNotification("Version info copied")
+            }
+            TextEdit { id: clipboardHelper; visible: false }
+        }
+        QQC2.Label {
+            Kirigami.FormData.label: "License:"
+            text: "GNU General Public License, version 3 or later"
+        }
+        Kirigami.UrlButton {
+            Kirigami.FormData.label: "Links:"
+            text: "Source code on GitHub"
+            url: "https://github.com/gollum161/tidal-kde"
+        }
+        Kirigami.UrlButton {
+            text: "Report a bug or suggest a feature"
+            url: "https://github.com/gollum161/tidal-kde/issues"
+        }
     }
 }

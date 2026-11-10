@@ -119,11 +119,14 @@ was not placed in the graphics scene" comes from Kirigami's `pageStack.push(Comp
   "start hidden" is on). An existing entry is rewritten at every start. `--hidden` makes Main.qml
   start with `visible: false` if close-to-tray is on and a tray is available.
 - Streaming quality is chosen on the settings page (no longer a sidebar submenu).
+- The settings page ends with "About": version (`Qt.application.version`, set from Cargo.toml in
+  app.cpp), `Kirigami.Settings.information` (KF/Qt/windowing versions), a "Copy version info"
+  button (QML has no clipboard API: a hidden TextEdit copies), license and GitHub links.
 - `src/discord.rs` – Discord Rich Presence (crate `discord-rich-presence`), Discord application id
   1569614507444150363 (public). A worker thread owns the IPC connection (calls block; Discord may
   be absent) and reconnects every 15 s. `Backend::sync_mpris` → `update_discord()` sends the state
   ~1×/s; the worker only writes on visible changes (track, pause, seek > 2 s, options) to stay under
   Discord's rate limit. Off by default; options in settings.json (`discord_*`). Tested against a
   fake IPC socket (unit test + `fake_discord.py`-style server); the real Discord look is untested.
-- Not done yet: drag-and-drop queue reordering, an About page, a Windows build (.exe: needs mpv over named pipes,
+- Not done yet: drag-and-drop queue reordering, a Windows build (.exe: needs mpv over named pipes,
   Kirigami built in CI, bundled mpv.exe, no Breeze style).
