@@ -1,6 +1,6 @@
 [package]
 name = "tidal-kde"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.80"
 description = "Unofficial KDE/Kirigami TIDAL client with synced lyrics, a play queue and MPRIS"
@@ -19,6 +19,7 @@ souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] 
 fastrand = "2"
 dirs = "5"
 libc = "0.2"
+discord-rich-presence = "1.1"
 
 [build-dependencies]
 cxx-qt-build = { version = "0.7", features = ["link_qt_object_files"] }

@@ -3,6 +3,7 @@
 mod appearance;
 mod autostart;
 mod bridge;
+mod discord;
 mod mpv;
 mod tidal;
 

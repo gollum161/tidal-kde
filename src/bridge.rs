@@ -46,6 +46,14 @@ pub mod qobject {
         #[qproperty(bool, autostart_hidden)]
         /// [{id, title, cover}] of the user's playlists, for the sidebar
         #[qproperty(QString, sidebar_playlists_json)]
+        // Discord Rich Presence
+        #[qproperty(bool, discord_enabled)]
+        #[qproperty(QString, discord_status)]
+        #[qproperty(bool, discord_show_cover)]
+        #[qproperty(bool, discord_show_album)]
+        #[qproperty(bool, discord_show_button)]
+        #[qproperty(bool, discord_show_paused)]
+        #[qproperty(bool, discord_connected)]
         type Backend = super::BackendRust;
 
         #[qinvokable]
@@ -102,6 +110,12 @@ pub mod qobject {
         /// Whether the autostart entry starts the app hidden in the tray.
         #[qinvokable]
         fn change_autostart_hidden(self: Pin<&mut Backend>, hidden: bool);
+        /// Discord on/off switches: "enabled", "cover", "album", "button", "paused".
+        #[qinvokable]
+        fn change_discord_option(self: Pin<&mut Backend>, key: &QString, value: bool);
+        /// What Discord's member list shows: "name", "details" (title) or "state" (artist).
+        #[qinvokable]
+        fn change_discord_status(self: Pin<&mut Backend>, status: &QString);
         /// Reloads the playlists shown in the sidebar.
         #[qinvokable]
         fn refresh_sidebar_playlists(self: Pin<&mut Backend>);
@@ -127,6 +141,7 @@ pub mod qobject {
 
 use crate::appearance;
 use crate::autostart;
+use crate::discord;
 use crate::mpv::Mpv;
 use crate::tidal::{config_dir, Lyrics, Tidal, Track};
 use core::pin::Pin;
@@ -160,6 +175,13 @@ struct Settings {
     close_to_tray: bool,
     /// The autostart entry starts the app hidden in the tray.
     autostart_hidden: bool,
+    /// Discord Rich Presence (off unless the user turns it on).
+    discord: bool,
+    discord_status: String,
+    discord_show_cover: bool,
+    discord_show_album: bool,
+    discord_show_button: bool,
+    discord_show_paused: bool,
 }
 
 impl Default for Settings {
@@ -172,6 +194,12 @@ impl Default for Settings {
             blur: true,
             close_to_tray: true,
             autostart_hidden: true,
+            discord: false,
+            discord_status: "details".into(),
+            discord_show_cover: true,
+            discord_show_album: true,
+            discord_show_button: true,
+            discord_show_paused: false,
         }
     }
 }
@@ -210,6 +238,7 @@ pub struct Core {
     settings: Settings,
     art: Option<String>,
     mpris_second: i64,
+    discord: Option<discord::Presence>,
 }
 
 impl Core {
@@ -250,6 +279,13 @@ pub struct BackendRust {
     autostart: bool,
     autostart_hidden: bool,
     sidebar_playlists_json: QString,
+    discord_enabled: bool,
+    discord_status: QString,
+    discord_show_cover: bool,
+    discord_show_album: bool,
+    discord_show_button: bool,
+    discord_show_paused: bool,
+    discord_connected: bool,
     core: Core,
 }
 
@@ -294,6 +330,13 @@ impl Default for BackendRust {
             autostart: autostart::is_enabled(),
             autostart_hidden: settings.autostart_hidden,
             sidebar_playlists_json: qs("[]"),
+            discord_enabled: settings.discord,
+            discord_status: qs(&settings.discord_status),
+            discord_show_cover: settings.discord_show_cover,
+            discord_show_album: settings.discord_show_album,
+            discord_show_button: settings.discord_show_button,
+            discord_show_paused: settings.discord_show_paused,
+            discord_connected: false,
             core: Core {
                 tidal: Arc::new(Tidal::new()),
                 mpv: None,
@@ -308,6 +351,7 @@ impl Default for BackendRust {
                 settings,
                 art: None,
                 mpris_second: -1,
+                discord: None,
             },
         }
     }
@@ -322,6 +366,14 @@ impl cxx_qt::Initialize for qobject::Backend {
         if !self.core().settings.color_scheme.is_empty() {
             appearance::apply_color_scheme(&self.core().settings.color_scheme);
         }
+        // Discord worker: idle (no connection) until Rich Presence is turned on.
+        let t = thread.clone();
+        let presence = discord::Presence::start(move |connected| {
+            let _ = t.queue(move |b| b.set_discord_connected(connected));
+        });
+        self.as_mut().core_mut().discord = Some(presence);
+        self.as_mut().update_discord();
+
         // Rewrite an existing autostart entry so it points at this binary/AppImage.
         if *self.autostart() {
             let _ = autostart::set_enabled(true, self.core().settings.autostart_hidden);
@@ -534,6 +586,39 @@ impl qobject::Backend {
                 self.message(format!("Couldn't change the autostart entry: {e}"));
             }
         }
+    }
+
+    pub fn change_discord_option(mut self: Pin<&mut Self>, key: &QString, value: bool) {
+        let key = key.to_string();
+        let s = &mut self.as_mut().core_mut().settings;
+        match key.as_str() {
+            "enabled" => s.discord = value,
+            "cover" => s.discord_show_cover = value,
+            "album" => s.discord_show_album = value,
+            "button" => s.discord_show_button = value,
+            "paused" => s.discord_show_paused = value,
+            _ => return,
+        }
+        save_settings(&self.core().settings);
+        match key.as_str() {
+            "enabled" => self.as_mut().set_discord_enabled(value),
+            "cover" => self.as_mut().set_discord_show_cover(value),
+            "album" => self.as_mut().set_discord_show_album(value),
+            "button" => self.as_mut().set_discord_show_button(value),
+            _ => self.as_mut().set_discord_show_paused(value),
+        }
+        self.update_discord();
+    }
+
+    pub fn change_discord_status(mut self: Pin<&mut Self>, status: &QString) {
+        let status = status.to_string();
+        if !["name", "details", "state"].contains(&status.as_str()) {
+            return;
+        }
+        self.as_mut().core_mut().settings.discord_status = status.clone();
+        save_settings(&self.core().settings);
+        self.as_mut().set_discord_status(qs(&status));
+        self.update_discord();
     }
 
     pub fn refresh_sidebar_playlists(self: Pin<&mut Self>) {
@@ -866,6 +951,34 @@ impl qobject::Backend {
             };
             let _ = controls.set_playback(state);
         }
+        self.update_discord();
+    }
+
+    /// Sends the current state to the Discord worker (it skips unchanged states).
+    fn update_discord(&self) {
+        let Some(presence) = &self.core().discord else { return };
+        let s = &self.core().settings;
+        let options = discord::Options {
+            enabled: s.discord,
+            status: s.discord_status.clone(),
+            show_cover: s.discord_show_cover,
+            show_album: s.discord_show_album,
+            show_button: s.discord_show_button,
+            show_paused: s.discord_show_paused,
+        };
+        let t = self.core().current().cloned().unwrap_or_default();
+        let now = discord::NowPlaying {
+            track_id: t.id,
+            title: t.title,
+            artist: t.artist,
+            album: t.album,
+            cover: t.cover_large,
+            duration: if *self.duration() > 0.0 { *self.duration() } else { t.duration },
+            position: *self.position(),
+            active: self.busy(),
+            paused: self.core().paused,
+        };
+        presence.update(options, now);
     }
 
     fn update_mpris_metadata(mut self: Pin<&mut Self>) {

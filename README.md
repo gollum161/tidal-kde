@@ -26,10 +26,12 @@ Kirigami (QML) user interface.
 - Streaming quality setting (up to 16-bit / 44.1 kHz FLAC)
 - System tray icon: closing the window keeps the music playing (can be turned off)
 - Start on login, optionally hidden in the tray
+- Discord Rich Presence ("Listening to …" with cover, progress and a "Listen on TIDAL" button),
+  off by default and adjustable in the settings
 - Themes: pick any installed KDE color scheme (Breeze, Breeze Dark, …) or follow the system
 - Adjustable window transparency (slider or Off/Light/Medium/Strong), optionally with the
   background blurred (KWin)
-- All settings (volume, quality, theme, transparency, tray, startup) are remembered between sessions
+- All settings (volume, quality, theme, transparency, tray, startup, Discord) are remembered between sessions
 - Native look on Plasma through the Breeze Qt Quick style
 - Only one instance: starting the app again brings the running window back
 
@@ -114,7 +116,7 @@ terminal to see QML errors with file and line numbers.
 | Path | Contents |
 | --- | --- |
 | `~/.config/tidal-kde/session.json` | Login tokens (readable by you only). Delete it to sign out. |
-| `~/.config/tidal-kde/settings.json` | Streaming quality, volume, color scheme, transparency, blur, tray, start hidden |
+| `~/.config/tidal-kde/settings.json` | Streaming quality, volume, color scheme, transparency, blur, tray, start hidden, Discord |
 | `~/.config/autostart/io.github.tidal_kde.TidalKde.desktop` | Only when "Start Tidal KDE when I log in" is on |
 | `~/.config/tidal-kde/client.json` | Optional: your own API client credentials (see below) |
 | `~/.cache/tidal-kde/` | Cached cover art |

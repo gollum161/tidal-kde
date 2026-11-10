@@ -151,5 +151,65 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
         }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: "Discord"
+        }
+
+        QQC2.CheckBox {
+            Kirigami.FormData.label: "Rich Presence:"
+            text: "Show what I'm listening to on Discord"
+            checked: Backend.discordEnabled
+            onToggled: Backend.changeDiscordOption("enabled", checked)
+        }
+        QQC2.Label {
+            visible: Backend.discordEnabled
+            text: Backend.discordConnected
+                ? "Connected to Discord."
+                : "Discord isn't running (or can't be reached). Tidal KDE connects as soon as it starts."
+            font: Kirigami.Theme.smallFont
+            opacity: 0.7
+            wrapMode: Text.Wrap
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+        }
+        QQC2.ComboBox {
+            Kirigami.FormData.label: "Status shows:"
+            enabled: Backend.discordEnabled
+            readonly property var choices: [
+                { id: "details", name: "Listening to <track title>" },
+                { id: "state", name: "Listening to <artist>" },
+                { id: "name", name: "Listening to Tidal KDE" }
+            ]
+            model: choices
+            textRole: "name"
+            valueRole: "id"
+            currentIndex: Math.max(0, choices.findIndex(c => c.id === Backend.discordStatus))
+            onActivated: Backend.changeDiscordStatus(currentValue)
+        }
+        QQC2.CheckBox {
+            text: "Show the album cover"
+            enabled: Backend.discordEnabled
+            checked: Backend.discordShowCover
+            onToggled: Backend.changeDiscordOption("cover", checked)
+        }
+        QQC2.CheckBox {
+            text: "Show the album name"
+            enabled: Backend.discordEnabled
+            checked: Backend.discordShowAlbum
+            onToggled: Backend.changeDiscordOption("album", checked)
+        }
+        QQC2.CheckBox {
+            text: "Add a \"Listen on TIDAL\" button"
+            enabled: Backend.discordEnabled
+            checked: Backend.discordShowButton
+            onToggled: Backend.changeDiscordOption("button", checked)
+        }
+        QQC2.CheckBox {
+            text: "Keep showing the track while paused"
+            enabled: Backend.discordEnabled
+            checked: Backend.discordShowPaused
+            onToggled: Backend.changeDiscordOption("paused", checked)
+        }
     }
 }
